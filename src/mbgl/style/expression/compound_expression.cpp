@@ -185,6 +185,18 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
         definitions[name].push_back(makeSignature(fn, name));
     };
     
+//    auto defineFilterOperator[&]() {
+//
+//    }
+//
+//    auto defineFilterPropertyOperator[&]() {
+//
+//    }
+//
+//    auto defineFilterIdOperator[&]() {
+//
+//    }
+    
     define("e", []() -> Result<double> { return 2.718281828459045; });
     define("pi", []() -> Result<double> { return 3.141592653589793; });
     define("ln2", []() -> Result<double> { return 0.6931471805599453; });
@@ -389,6 +401,77 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
     define("error", [](const std::string& input) -> Result<type::ErrorType> {
         return EvaluationError { input };
     });
+    
+    define("filter-==", [](const EvaluationContext& params, const std::string& key, const Value &lhs) -> Result<bool> {
+        assert(params.feature);
+        auto rhs = params.feature->getValue(key);
+        if (!rhs) return false;
+        return lhs == toExpressionValue(*rhs);
+    });
+    
+    define("filter-id-==", [](const EvaluationContext& params, const Value &lhs) -> Result<bool> {
+        assert(params.feature);
+        auto rhs = params.feature->getID();
+        if (!rhs) return false;
+        return rhs->match([lhs](const auto& rhs) {
+            return lhs == toExpressionValue(mbgl::Value(rhs));
+        });
+    });
+
+    define("filter-type-==", [](const EvaluationContext& params, const std::string &lhs) -> Result<bool> {
+        assert(params.feature);
+        auto rhs = params.feature->getType();
+        return (
+            (lhs == "Point" && rhs == FeatureType::Point) ||
+            (lhs == "LineString" && rhs == FeatureType::LineString) ||
+            (lhs == "Polygon" && rhs == FeatureType::Polygon) ||
+            (lhs == "Unknown" && rhs == FeatureType::Unknown)
+        );
+    });
+
+//    define("filter-<", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
+//        assert(params.feature);
+//
+//        auto rhs = params.feature->getValue(key);
+//        if (!rhs) return false;
+//        return *rhs < lhs;
+//
+//        auto rhs = toExpressionValue();
+//        return lhs < rhs.get<double>();
+//    });
+    
+//    define("filter-id-<", [](const EvaluationContext& params, double lhs) -> Result<bool> {
+//        assert(params.feature);
+//        auto rhs = toExpressionValue(params.feature->getID());
+//        return lhs < rhs.get<double>();
+//    });
+//
+//    define("filter->", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
+//        assert(params.feature);
+//        auto rhs = toExpressionValue(params.feature->getValue(key));
+//        return lhs > rhs.get<double>();
+//    });
+//
+//    define("filter-id->", [](const EvaluationContext& params, double lhs) -> Result<bool> {
+//        assert(params.feature);
+//        auto rhs = toExpressionValue(params.feature->getID());
+//        return lhs > rhs.get<double>();
+//    });
+//
+//    define("filter-has", [](const EvaluationContext& params, const std::string& key) -> Result<bool> {
+//        assert(params.feature);
+//        return bool(params.feature->getValue(key));
+//    });
+//
+//    define("filter-has-id", [](const EvaluationContext& params) -> Result<bool> {
+//        assert(params.feature);
+//        return bool(params.feature->getID());
+//    });
+
+    // define("filter-type-in", []() -> Result<bool> { return false; });
+    // define("filter-id-in", []() -> Result<bool> { return false; });
+    // define("filter-in-small", []() -> Result<bool> { return false; });
+    // define("filter-in-large", []() -> Result<bool> { return false; });
     
     return definitions;
 }
