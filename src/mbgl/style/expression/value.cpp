@@ -103,7 +103,7 @@ Value ValueConverter<mbgl::Value>::toExpressionValue(const mbgl::Value& value) {
     return mbgl::Value::visit(value, FromMBGLValue());
 }
     
-Value ValueConverter<FeatureIdentifier>::toExpressionValue(FeatureIdentifier value) {
+Value ValueConverter<FeatureIdentifier>::toExpressionValue(const FeatureIdentifier &value) {
     return value.match(
         [](std::string value) -> Value {
             return value;

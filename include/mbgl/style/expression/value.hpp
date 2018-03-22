@@ -115,7 +115,7 @@ struct ValueConverter<mbgl::Value> {
     
 template<>
 struct ValueConverter<FeatureIdentifier> {
-    static Value toExpressionValue(FeatureIdentifier id);
+    static Value toExpressionValue(const FeatureIdentifier &id);
 };
 
 template <typename T, std::size_t N>
