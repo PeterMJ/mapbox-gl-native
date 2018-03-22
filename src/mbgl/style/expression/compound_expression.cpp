@@ -411,11 +411,9 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
     
     define("filter-id-==", [](const EvaluationContext& params, const Value &lhs) -> Result<bool> {
         assert(params.feature);
-        auto rhs = params.feature->getID();
+        optional<FeatureIdentifier> rhs = params.feature->getID();
         if (!rhs) return false;
-        return rhs->match([lhs](const auto& rhs) {
-            return lhs == toExpressionValue(mbgl::Value(rhs));
-        });
+        return lhs == toExpressionValue(*rhs);
     });
 
     define("filter-type-==", [](const EvaluationContext& params, const std::string &lhs) -> Result<bool> {
