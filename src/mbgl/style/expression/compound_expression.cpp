@@ -178,24 +178,47 @@ template <typename Fn>
 static std::unique_ptr<detail::SignatureBase> makeSignature(Fn evaluateFunction, std::string name) {
     return std::make_unique<detail::Signature<Fn>>(evaluateFunction, std::move(name));
 }
+    
+Value featureIdAsExpressionValue(EvaluationContext params) {
+    assert(params.feature);
+    auto id = params.feature->getID();
+    if (!id) return Null;
+    return id->match([](const auto& id) {
+        return toExpressionValue(mbgl::Value(id));
+    });
+};
+    
+Value featurePropertyAsExpressionValue(EvaluationContext params, const std::string& key) {
+    assert(params.feature);
+    auto property = params.feature->getValue(key);
+    return property ? toExpressionValue(*property) : Null;
+};
+    
+optional<double> featurePropertyAsDouble(EvaluationContext params, const std::string& key) {
+    assert(params.feature);
+    auto property = params.feature->getValue(key);
+    if (!property) return optional<double>();
+    return property->match(
+        [](double value) { return value; },
+        [](auto value) { (void) value; return optional<double>(); }
+    );
+};
+    
+optional<double> featureIdAsDouble(EvaluationContext params) {
+    assert(params.feature);
+    auto id = params.feature->getID();
+    if (!id) return optional<double>();
+    return id->match(
+       [](std::string value) { (void) value; return optional<double>(); },
+       [](auto value) { return optional<double>(static_cast<double>(value)); }
+    );
+};
 
 std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initializeDefinitions() {
     std::unordered_map<std::string, CompoundExpressionRegistry::Definition> definitions;
     auto define = [&](std::string name, auto fn) {
         definitions[name].push_back(makeSignature(fn, name));
     };
-    
-//    auto defineFilterOperator[&]() {
-//
-//    }
-//
-//    auto defineFilterPropertyOperator[&]() {
-//
-//    }
-//
-//    auto defineFilterIdOperator[&]() {
-//
-//    }
     
     define("e", []() -> Result<double> { return 2.718281828459045; });
     define("pi", []() -> Result<double> { return 3.141592653589793; });
@@ -403,17 +426,11 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
     });
     
     define("filter-==", [](const EvaluationContext& params, const std::string& key, const Value &lhs) -> Result<bool> {
-        assert(params.feature);
-        auto rhs = params.feature->getValue(key);
-        if (!rhs) return false;
-        return lhs == toExpressionValue(*rhs);
+        return lhs == featurePropertyAsExpressionValue(params, key);
     });
     
     define("filter-id-==", [](const EvaluationContext& params, const Value &lhs) -> Result<bool> {
-        assert(params.feature);
-        optional<FeatureIdentifier> rhs = params.feature->getID();
-        if (!rhs) return false;
-        return lhs == toExpressionValue(*rhs);
+        return lhs == featureIdAsExpressionValue(params);
     });
 
     define("filter-type-==", [](const EvaluationContext& params, const std::string &lhs) -> Result<bool> {
@@ -427,44 +444,55 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
         );
     });
 
-//    define("filter-<", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
-//        assert(params.feature);
-//
-//        auto rhs = params.feature->getValue(key);
-//        if (!rhs) return false;
-//        return *rhs < lhs;
-//
-//        auto rhs = toExpressionValue();
-//        return lhs < rhs.get<double>();
-//    });
+    define("filter-<", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
+        auto rhs = featurePropertyAsDouble(params, key);
+        return rhs ? rhs < lhs : false;
+    });
     
-//    define("filter-id-<", [](const EvaluationContext& params, double lhs) -> Result<bool> {
-//        assert(params.feature);
-//        auto rhs = toExpressionValue(params.feature->getID());
-//        return lhs < rhs.get<double>();
-//    });
-//
-//    define("filter->", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
-//        assert(params.feature);
-//        auto rhs = toExpressionValue(params.feature->getValue(key));
-//        return lhs > rhs.get<double>();
-//    });
-//
-//    define("filter-id->", [](const EvaluationContext& params, double lhs) -> Result<bool> {
-//        assert(params.feature);
-//        auto rhs = toExpressionValue(params.feature->getID());
-//        return lhs > rhs.get<double>();
-//    });
-//
-//    define("filter-has", [](const EvaluationContext& params, const std::string& key) -> Result<bool> {
-//        assert(params.feature);
-//        return bool(params.feature->getValue(key));
-//    });
-//
-//    define("filter-has-id", [](const EvaluationContext& params) -> Result<bool> {
-//        assert(params.feature);
-//        return bool(params.feature->getID());
-//    });
+    define("filter-id-<", [](const EvaluationContext& params, double lhs) -> Result<bool> {
+        auto rhs = featureIdAsDouble(params);
+        return rhs ? rhs < lhs : false;
+    });
+
+    define("filter->", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
+        auto rhs = featurePropertyAsDouble(params, key);
+        return rhs ? rhs > lhs : false;
+    });
+
+    define("filter-id->", [](const EvaluationContext& params, double lhs) -> Result<bool> {
+        auto rhs = featureIdAsDouble(params);
+        return rhs ? rhs > lhs : false;
+    });
+    
+    define("filter-<=", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
+        auto rhs = featurePropertyAsDouble(params, key);
+        return rhs ? rhs <= lhs : false;
+    });
+    
+    define("filter-id-<=", [](const EvaluationContext& params, double lhs) -> Result<bool> {
+        auto rhs = featureIdAsDouble(params);
+        return rhs ? rhs <= lhs : false;
+    });
+    
+    define("filter->=", [](const EvaluationContext& params, const std::string& key, double lhs) -> Result<bool> {
+        auto rhs = featurePropertyAsDouble(params, key);
+        return rhs ? rhs >= lhs : false;
+    });
+    
+    define("filter-id->=", [](const EvaluationContext& params, double lhs) -> Result<bool> {
+        auto rhs = featureIdAsDouble(params);
+        return rhs ? rhs >= lhs : false;
+    });
+
+    define("filter-has", [](const EvaluationContext& params, const std::string& key) -> Result<bool> {
+        assert(params.feature);
+        return bool(params.feature->getValue(key));
+    });
+
+    define("filter-has-id", [](const EvaluationContext& params) -> Result<bool> {
+        assert(params.feature);
+        return bool(params.feature->getID());
+    });
 
     // define("filter-type-in", []() -> Result<bool> { return false; });
     // define("filter-id-in", []() -> Result<bool> { return false; });
