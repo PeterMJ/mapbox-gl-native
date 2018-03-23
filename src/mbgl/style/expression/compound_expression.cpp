@@ -548,8 +548,16 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
         return false;
     });
 
-    // define("filter-in-small", []() -> Result<bool> { return false; });
-    // define("filter-in-large", []() -> Result<bool> { return false; });
+    // TODO(lucaswoj) implement "filter-in-large"
+    define("filter-in-small", [](const EvaluationContext& params, const Varargs<Value>& varargs) -> Result<bool> {
+        if (varargs.size() < 2) return false;
+
+        // TODO(lucaswoj) check type of key
+        const std::string& key = varargs[0].get<std::string>();
+        auto value = featurePropertyAsExpressionValue(params, key);
+
+        return std::find(varargs.begin() + 1, varargs.end(), value) != varargs.end();
+    });
     
     return definitions;
 }
