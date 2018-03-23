@@ -215,7 +215,7 @@ static std::unique_ptr<detail::SignatureBase> makeSignature(Fn evaluateFunction,
 }
     
 Value featureIdAsExpressionValue(EvaluationContext params) {
-    if (!params.feature) return Null;
+    assert(params.feature);
     auto id = params.feature->getID();
     if (!id) return Null;
     return id->match([](const auto& id) {
@@ -224,7 +224,7 @@ Value featureIdAsExpressionValue(EvaluationContext params) {
 };
     
 Value featurePropertyAsExpressionValue(EvaluationContext params, const std::string& key) {
-    if (!params.feature) return Null;
+    assert(params.feature);
     auto property = params.feature->getValue(key);
     return property ? toExpressionValue(*property) : Null;
 };
@@ -237,18 +237,26 @@ optional<FeatureType> stringAsFeatureType(const std::string &type) {
     else return optional<FeatureType>();
 };
     
+optional<std::string> featureTypeAsString(FeatureType type) {
+    if (type == FeatureType::Point) return optional<std::string>("Point");
+    else if (type == FeatureType::LineString) return optional<std::string>("LineString");
+    else if (type == FeatureType::Polygon) return optional<std::string>("Polygon");
+    else if (type == FeatureType::Unknown) return optional<std::string>("Unknown");
+    else return optional<std::string>();
+};
+    
 optional<double> featurePropertyAsDouble(EvaluationContext params, const std::string& key) {
-    if (!params.feature) return optional<double>();
+    assert(params.feature);
     auto property = params.feature->getValue(key);
     if (!property) return optional<double>();
     return property->match(
         [](double value) { return value; },
-        [](auto value) { (void) value; return optional<double>(); }
+        [](auto) { return optional<double>(); }
     );
 };
     
 optional<double> featureIdAsDouble(EvaluationContext params) {
-    if (!params.feature) return optional<double>();
+    assert(params.feature);
     auto id = params.feature->getID();
     if (!id) return optional<double>();
     return id->match(
@@ -532,30 +540,20 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
     });
 
     define("filter-type-in", [](const EvaluationContext& params, const Varargs<std::string>& types) -> Result<bool> {
-        if (!params.feature) return false;
-        auto featureType = params.feature->getType();
-        for (const std::string &type : types) {
-            if (stringAsFeatureType(type) == featureType) return true;
-        }
-        return false;
+        assert(params.feature);
+        optional<std::string> type = featureTypeAsString(params.feature->getType());
+        return std::find(types.begin(), types.end(), type) != types.end();
     });
     
     define("filter-id-in", [](const EvaluationContext& params, const Varargs<Value>& ids) -> Result<bool> {
-        auto featureId = featureIdAsExpressionValue(params);
-        for (const Value &id : ids) {
-            if (id == featureId) return true;
-        }
-        return false;
+        auto id = featureIdAsExpressionValue(params);
+        return std::find(ids.begin(), ids.end(), id) != ids.end();
     });
 
-    // TODO(lucaswoj) implement "filter-in-large"
-    define("filter-in-small", [](const EvaluationContext& params, const Varargs<Value>& varargs) -> Result<bool> {
+    define("filter-in", [](const EvaluationContext& params, const Varargs<Value>& varargs) -> Result<bool> {
         if (varargs.size() < 2) return false;
-
-        // TODO(lucaswoj) check type of key
-        const std::string& key = varargs[0].get<std::string>();
-        auto value = featurePropertyAsExpressionValue(params, key);
-
+        assert(varargs[0].is<std::string>());
+        auto value = featurePropertyAsExpressionValue(params, varargs[0].get<std::string>());
         return std::find(varargs.begin() + 1, varargs.end(), value) != varargs.end();
     });
     
