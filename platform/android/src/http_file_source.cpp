@@ -85,11 +85,15 @@ HTTPRequest::HTTPRequest(jni::JNIEnv& env, const Resource& resource_, FileSource
     static auto constructor =
         javaClass.GetConstructor<jni::jlong, jni::String, jni::String, jni::String>(env);
 
+    auto resourceUrl = jni::Make<jni::String>(env, resource.url);
+    auto etag = jni::Make<jni::String>(env, etagStr);
+    auto modified = jni::Make<jni::String>(env, modifiedStr);
     javaRequest = javaClass.New(env, constructor,
-        reinterpret_cast<jlong>(this),
-        jni::Make<jni::String>(env, resource.url),
-        jni::Make<jni::String>(env, etagStr),
-        jni::Make<jni::String>(env, modifiedStr)).NewGlobalRef(env);
+                            reinterpret_cast<jlong>(this),
+                            resourceUrl, etag, modified).NewGlobalRef(env);
+    jni::DeleteLocalRef(env, resourceUrl);
+    jni::DeleteLocalRef(env, etag);
+    jni::DeleteLocalRef(env, modified);
 }
 
 HTTPRequest::~HTTPRequest() {
