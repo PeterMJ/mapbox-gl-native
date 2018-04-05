@@ -218,8 +218,8 @@ Value featureIdAsExpressionValue(EvaluationContext params) {
     assert(params.feature);
     auto id = params.feature->getID();
     if (!id) return Null;
-    return id->match([](const auto& id) {
-        return toExpressionValue(mbgl::Value(id));
+    return id->match([](const auto& idid) {
+        return toExpressionValue(mbgl::Value(idid));
     });
 };
     
@@ -260,8 +260,10 @@ optional<double> featureIdAsDouble(EvaluationContext params) {
     auto id = params.feature->getID();
     if (!id) return optional<double>();
     return id->match(
-       [](std::string value) { (void) value; return optional<double>(); },
-       [](auto value) { return optional<double>(static_cast<double>(value)); }
+       [](std::string) { return optional<double>(); },
+       [](uint64_t value) { return optional<double>(static_cast<double>(value)); },
+       [](int64_t value) { return optional<double>(static_cast<double>(value)); },
+       [](double value) { return optional<double>(value); }
     );
 };
 
