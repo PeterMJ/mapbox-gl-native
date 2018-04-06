@@ -141,6 +141,8 @@ private:
         errors(std::move(errors_))
     {}
     
+    bool isConstant(const Expression& expression);
+    
     std::string key;
     optional<type::Type> expected;
     std::shared_ptr<detail::Scope> scope;
